@@ -2,26 +2,26 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub IPTV - Mobile Optimized</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GitHub IPTV - Netflix Style</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         :root { 
-            --primary-color: #007bff; 
-            --bg-dark: #0f0f0f; 
-            --card-bg: #252525;
+            --primary-color: #e50914; /* Màu đỏ Netflix */
+            --bg-dark: #141414; 
+            --card-bg: #2f2f2f;
             --text-main: #ffffff;
         }
         
         body { 
-            font-family: -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
             background: var(--bg-dark); 
             color: var(--text-main); 
             margin: 0; 
-            padding-bottom: env(safe-area-inset-bottom); /* Tối ưu cho iPhone đời mới */
+            overflow-x: hidden;
         }
         
-        /* Video Player Section */
+        /* Player cố định phía trên */
         .video-wrapper { 
             position: sticky; 
             top: 0; 
@@ -31,85 +31,76 @@
             max-width: 1000px; 
             margin: 0 auto; 
         }
-        video { width: 100%; aspect-ratio: 16/9; display: block; background: #000; }
+        video { width: 100%; aspect-ratio: 16/9; display: block; }
         
-        /* Fullscreen Button - TO VÀ RÕ */
-        .controls { padding: 12px; background: #1a1a1a; border-bottom: 1px solid #333; }
+        .controls { padding: 10px; background: #141414; }
         .btn-fullscreen { 
             width: 100%; 
-            padding: 18px; 
-            font-size: 20px; /* Chữ to hơn */
-            font-weight: 800; /* Đậm hơn */
+            padding: 15px; 
+            font-size: 16px; 
+            font-weight: bold;
             background: var(--primary-color); 
             color: white; 
             border: none; 
-            border-radius: 12px; 
-            cursor: pointer; 
-            text-transform: uppercase;
-            box-shadow: 0 4px 10px rgba(0, 123, 255, 0.3);
+            border-radius: 4px; 
+            cursor: pointer;
         }
 
-        /* Danh sách kênh */
-        .container { max-width: 1000px; margin: 0 auto; padding: 10px; }
+        .container { padding: 10px 0 20px 15px; }
         
         .group-header { 
-            background: #333;
-            padding: 10px 15px;
-            border-radius: 8px;
-            margin: 20px 0 12px 0;
-            font-weight: bold;
-            font-size: 14px;
-            color: #4db8ff;
-            display: flex;
-            align-items: center;
-        }
-        .group-header::before {
-            content: "";
-            width: 4px;
-            height: 18px;
-            background: var(--primary-color);
-            margin-right: 10px;
-            border-radius: 2px;
+            font-size: 18px; 
+            font-weight: bold; 
+            margin: 20px 0 10px 0;
+            color: #e5e5e5;
         }
         
-        /* Grid Layout cho Mobile */
-        .grid { 
-            display: grid; 
-            grid-template-columns: repeat(2, 1fr); /* 2 cột trên mobile */
-            gap: 12px; 
-        }
-        
-        /* Desktop: 3 hoặc 4 cột */
-        @media (min-width: 768px) {
-            .grid { grid-template-columns: repeat(4, 1fr); }
-        }
-
-        /* Thẻ Kênh - TỐI ƯU BOLD VÀ TO */
-        .channel-card { 
-            background: var(--card-bg); 
-            padding: 20px 10px; 
-            border-radius: 12px; 
-            text-align: center; 
-            cursor: pointer; 
-            font-size: 17px; /* Tăng cỡ chữ */
-            font-weight: 700; /* BOLD đậm */
-            border: 2px solid transparent; 
+        /* Netflix Scroll Row */
+        .scroll-row { 
             display: flex; 
-            flex-direction: column;
-            align-items: center; 
-            justify-content: center;
-            min-height: 60px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-            transition: all 0.2s ease;
+            overflow-x: auto; 
+            gap: 12px; 
+            padding-bottom: 15px;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
         }
         
-        .channel-card:active { transform: scale(0.95); background: #333; }
+        /* Ẩn thanh cuộn nhưng vẫn cuộn được */
+        .scroll-row::-webkit-scrollbar { display: none; }
+        .scroll-row { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Thẻ kênh kiểu Poster */
+        .channel-card { 
+            flex: 0 0 140px; /* Độ rộng cố định cho mỗi item */
+            background: var(--card-bg); 
+            height: 80px; 
+            border-radius: 4px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            text-align: center;
+            padding: 10px;
+            font-size: 15px; 
+            font-weight: bold; 
+            cursor: pointer;
+            transition: transform 0.3s;
+            border: 2px solid transparent;
+            box-sizing: border-box;
+        }
+        
+        .channel-card:active { transform: scale(0.9); }
         
         .channel-card.active { 
             border-color: var(--primary-color); 
-            background: rgba(0, 123, 255, 0.15); 
-            color: var(--primary-color);
-            box-shadow: 0 0 15px rgba(0, 123, 255, 0.4);
+            background: #404040;
+        }
+
+        /* Chữ cho kênh */
+        .channel-name {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
     </style>
 </head>
@@ -118,16 +109,16 @@
 <div class="video-wrapper">
     <video id="video" autoplay playsinline></video>
     <div class="controls">
-        <button class="btn-fullscreen" onclick="goFullScreen()">🔳 PHÓNG TO MÀN HÌNH</button>
+        <button class="btn-fullscreen" onclick="goFullScreen()">PHÓNG TO MÀN HÌNH</button>
     </div>
 </div>
 
 <div class="container">
-    <div class="group-header">NGUỒN FPT (ỔN ĐỊNH)</div>
-    <div class="grid" id="group-fpt"></div>
+    <div class="group-header">Nguồn FPT</div>
+    <div class="scroll-row" id="group-fpt"></div>
 
-    <div class="group-header">NGUỒN DỰ PHÒNG (DÀNH CHO TV)</div>
-    <div class="grid" id="group-hd"></div>
+    <div class="group-header">Nguồn Dự Phòng</div>
+    <div class="scroll-row" id="group-hd"></div>
 </div>
 
 <script>
@@ -178,15 +169,13 @@
 
     function goFullScreen() {
         if (video.requestFullscreen) video.requestFullscreen();
-        else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen(); // Cho iOS Safari
-        else if (video.webkitRequestFullscreen) video.webkitRequestFullscreen();
+        else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
     }
 
-    // Render channels
     channels.forEach(channel => {
         const card = document.createElement('div');
         card.className = 'channel-card';
-        card.innerHTML = `<span>${channel.name}</span>`;
+        card.innerHTML = `<span class="channel-name">${channel.name}</span>`;
         card.onclick = () => {
             playStream(channel.url, card);
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -194,7 +183,6 @@
         document.getElementById(`group-${channel.group}`).appendChild(card);
     });
 
-    // Tự động play kênh đầu tiên
     window.onload = () => {
         const firstCard = document.querySelector('.channel-card');
         if(firstCard) playStream(channels[0].url, firstCard);
