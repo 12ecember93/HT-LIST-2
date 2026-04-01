@@ -3,18 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GitHub IPTV - Clean Pin</title>
+    <title>GitHub IPTV - Safari Fixed</title>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        :root { 
-            --bg-dark: #0f0f0f; --primary-color: #f00; --fav-color: #ffcc00;
-            --active-bg: rgba(255, 255, 255, 0.2); --action-blue: #0056b3;
-        }
-        body { font-family: "Roboto", Arial, sans-serif; background: var(--bg-dark); color: #fff; margin: 0; padding: 0; overflow-x: hidden; -webkit-tap-highlight-color: transparent; }
+        :root { --bg-dark: #0f0f0f; --primary-color: #f00; --fav-color: #ffcc00; --action-blue: #0056b3; }
+        body { font-family: "Roboto", Arial, sans-serif; background: var(--bg-dark); color: #fff; margin: 0; padding: 0; overflow-x: hidden; }
         
         /* Player */
-        .video-container { position: sticky; top: 0; z-index: 1000; background: #000; width: 100%; max-width: 100%; margin: 0 auto; aspect-ratio: 16/9; }
-        video { width: 100%; height: 100%; display: block; background: #000; }
+        .video-container { position: sticky; top: 0; z-index: 1000; background: #000; width: 100%; aspect-ratio: 16/9; }
+        video { width: 100%; height: 100%; display: block; }
 
         /* Overlay & Sidebar */
         .video-overlay {
@@ -25,57 +22,53 @@
         .video-overlay.show { opacity: 1; pointer-events: auto; }
 
         .side-nav {
-            width: 200px; height: 100%; background: rgba(10,10,10,0.98);
+            width: 180px; height: 100%; background: rgba(10,10,10,0.98);
             display: flex; flex-direction: column; overflow-y: auto;
             transform: translateX(-100%); transition: transform 0.3s ease;
-            scrollbar-width: none; border-right: 2px solid #333;
+            border-right: 2px solid #333;
         }
         .video-overlay.show .side-nav { transform: translateX(0); }
         .side-item { padding: 15px 10px; display: flex; flex-direction: column; align-items: center; border-bottom: 1px solid #222; cursor: pointer; }
-        .side-item img { width: 120px; height: 60px; object-fit: contain; margin-bottom: 5px; pointer-events: none; }
-        .side-item span { font-size: 14px; font-weight: bold; color: #ddd; pointer-events: none; }
-        .side-header { padding: 12px; font-size: 12px; font-weight: bold; color: #4db8ff; background: #1a1a1a; text-align: center; text-transform: uppercase; }
+        .side-item img { width: 110px; height: 55px; object-fit: contain; pointer-events: none; }
+        .side-item span { font-size: 13px; font-weight: bold; color: #ddd; margin-top: 5px; pointer-events: none; }
 
-        /* Nút Thoát (Chỉ hiện khi fullscreen) */
+        /* Nút Thoát Toàn Màn Hình */
         .exit-fs-btn {
-            position: absolute; bottom: 25px; right: 25px;
-            background: var(--action-blue); color: white; border: 2px solid #fff; padding: 15px 30px;
-            border-radius: 12px; font-weight: 900; font-size: 16px; display: none;
+            position: absolute; bottom: 20px; right: 20px;
+            background: var(--action-blue); color: white; border: 2px solid #fff; 
+            padding: 12px 20px; border-radius: 10px; font-weight: 900; font-size: 14px;
+            display: block; /* Luôn cho phép hiển thị trong overlay */
         }
-        :fullscreen .exit-fs-btn, :-webkit-full-screen .exit-fs-btn { display: block; }
 
-        /* Floating Button Xem (Chỉ hiện khi KHÔNG fullscreen) */
+        /* Floating Phóng To */
         .floating-fs-btn {
             position: fixed; bottom: 20px; right: 20px;
             background: var(--action-blue); color: white; border: 2px solid #fff;
             padding: 18px 25px; border-radius: 50px; font-weight: 900; font-size: 16px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.7); z-index: 999;
+            z-index: 999; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
         }
-        :fullscreen .floating-fs-btn, :-webkit-full-screen .floating-fs-btn { display: none; }
 
         .current-title { padding: 12px 15px; font-size: 18px; font-weight: 800; color: var(--fav-color); border-bottom: 1px solid #222; margin: 0; }
 
-        /* Mobile Grid */
-        .container { max-width: 1200px; margin: 0 auto; padding: 5px; padding-bottom: 120px; }
+        /* Desktop vs Mobile */
+        .container { max-width: 1200px; margin: 0 auto; padding: 5px; padding-bottom: 100px; }
         .channel-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
         
-        /* Desktop Mode */
         @media (min-width: 992px) { 
             .container { display: none; } 
-            .video-container { max-width: 85vw; margin: 30px auto; border-radius: 20px; overflow: hidden; }
+            .video-container { max-width: 85vw; margin: 20px auto; border-radius: 15px; overflow: hidden; }
         }
 
-        .group-header { grid-column: 1 / -1; padding: 15px 10px 5px 10px; font-size: 12px; font-weight: bold; color: #4db8ff; text-transform: uppercase; }
-        .channel-item { background: #1a1a1a; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; align-items: center; cursor: pointer; border: 1px solid #333; }
+        .channel-item { background: #1a1a1a; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; align-items: center; border: 1px solid #333; }
         .thumb-box { width: 100%; aspect-ratio: 16/9; background: #252525; border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 6px; }
         .thumb-box img { width: 85%; height: 85%; object-fit: contain; }
-        .channel-name { font-size: 11px; font-weight: 700; }
+        .channel-name { font-size: 11px; font-weight: 700; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="video-container" id="player-box" onclick="handleVideoTouch()">
-    <video id="video" autoplay playsinline></video>
+    <video id="video" autoplay playsinline x5-video-player-type="h5-page"></video>
     <div class="video-overlay" id="overlay">
         <div class="side-nav" id="side-nav"></div>
         <button class="exit-fs-btn" onclick="exitFS(event)">THOÁT TOÀN MÀN HÌNH</button>
@@ -92,98 +85,99 @@
 
 <script>
     const channels = [
-        { id: "vl1", short: "THVL1", name: "TH Vĩnh Long 1", logo: "https://static3.thvli.vn/assets/thumbnail/2025/09/12/pbe9c6gh_button_thvl1.png", url: "https://live.fptplay53.net/epzhd2/vinhlong1_vhls.smil/chunklist_b5000000.m3u8", group: "HOT" },
-        { id: "v1", short: "VTV1", name: "VTV1 HD", logo: "https://vn.xemtv.net/image/vtv1.png", url: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist.m3u8", group: "HOT" },
-        { id: "v3", short: "VTV3", name: "VTV3 HD", logo: "https://vn.xemtv.net/image/vtv3.png", url: "https://live.fptplay53.net/fnxch2/vtv3hd_abr.smil/chunklist.m3u8", group: "HOT" },
-        { id: "v2", short: "VTV2", name: "VTV2 HD", logo: "https://vn.xemtv.net/image/vtv2.png", url: "https://live.fptplay53.net/fnxch2/vtv2hd_abr.smil/chunklist.m3u8", group: "VTV" },
-        { id: "v4", short: "VTV4", name: "VTV4 HD", logo: "https://vn.xemtv.net/image/vtv4.png", url: "https://live.fptplay53.net/fnxch2/vtv4hd_abr.smil/chunklist.m3u8", group: "VTV" },
-        { id: "v5", short: "VTV5", name: "VTV5 HD", logo: "https://vn.xemtv.net/image/vtv5.png", url: "https://live-a.fptplay53.net/live/media/VTV5HD/live_hls_avc/index.m3u8", group: "VTV" },
-        { id: "h7", short: "HTV7", name: "HTV7 HD", logo: "https://vn.xemtv.net/image/htv7.png", url: "https://live.fptplay53.net/epzch2/htv7hd_abr.smil/chunklist.m3u8", group: "HTV" },
-        { id: "h9", short: "HTV9", name: "HTV9 HD", logo: "https://vn.xemtv.net/image/htv9.png", url: "https://live.fptplay53.net/epzhd1/htv9hd_vhls.smil/chunklist.m3u8", group: "HTV" }
+        { id: "vl1", short: "THVL1", name: "TH Vĩnh Long 1", logo: "https://static3.thvli.vn/assets/thumbnail/2025/09/12/pbe9c6gh_button_thvl1.png", url: "https://live.fptplay53.net/epzhd2/vinhlong1_vhls.smil/chunklist_b5000000.m3u8" },
+        { id: "v1", short: "VTV1", name: "VTV1 HD", logo: "https://vn.xemtv.net/image/vtv1.png", url: "https://live.fptplay53.net/fnxch2/vtv1hd_abr.smil/chunklist.m3u8" },
+        { id: "v3", short: "VTV3", name: "VTV3 HD", logo: "https://vn.xemtv.net/image/vtv3.png", url: "https://live.fptplay53.net/fnxch2/vtv3hd_abr.smil/chunklist.m3u8" },
+        { id: "v2", short: "VTV2", name: "VTV2 HD", logo: "https://vn.xemtv.net/image/vtv2.png", url: "https://live.fptplay53.net/fnxch2/vtv2hd_abr.smil/chunklist.m3u8" },
+        { id: "v4", short: "VTV4", name: "VTV4 HD", logo: "https://vn.xemtv.net/image/vtv4.png", url: "https://live.fptplay53.net/fnxch2/vtv4hd_abr.smil/chunklist.m3u8" },
+        { id: "v5", short: "VTV5", name: "VTV5 HD", logo: "https://vn.xemtv.net/image/vtv5.png", url: "https://live-a.fptplay53.net/live/media/VTV5HD/live_hls_avc/index.m3u8" },
+        { id: "h7", short: "HTV7", name: "HTV7 HD", logo: "https://vn.xemtv.net/image/htv7.png", url: "https://live.fptplay53.net/epzch2/htv7hd_abr.smil/chunklist.m3u8" },
+        { id: "h9", short: "HTV9", name: "HTV9 HD", logo: "https://vn.xemtv.net/image/htv9.png", url: "https://live.fptplay53.net/epzhd1/htv9hd_vhls.smil/chunklist.m3u8" }
     ];
 
     const video = document.getElementById('video');
     const overlay = document.getElementById('overlay');
+    const floatBtn = document.getElementById('float-btn');
     let hls = new Hls();
     let hideTimer;
 
     function handleVideoTouch() {
         overlay.classList.add('show');
         clearTimeout(hideTimer);
-        hideTimer = setTimeout(() => overlay.classList.remove('show'), 6000);
+        hideTimer = setTimeout(() => overlay.classList.remove('show'), 5000);
     }
 
     function toggleFS() {
         const p = document.getElementById('player-box');
-        if (p.requestFullscreen) p.requestFullscreen();
-        else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
-        if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+        // Đặc trị Safari iOS
+        if (video.webkitEnterFullscreen) {
+            video.webkitEnterFullscreen();
+        } else if (p.requestFullscreen) {
+            p.requestFullscreen();
+        }
+        
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(() => {});
+        }
+        floatBtn.style.display = 'none';
     }
 
-    function exitFS(e) { 
-        e.stopPropagation(); 
+    function exitFS(e) {
+        if(e) e.stopPropagation();
         if (document.exitFullscreen) document.exitFullscreen();
         else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        overlay.classList.remove('show'); 
+        overlay.classList.remove('show');
+        floatBtn.style.display = 'block';
     }
 
-    function renderMainList() {
-        const mainList = document.getElementById('main-list');
-        if(!mainList) return;
-        mainList.innerHTML = "";
-        ["HOT", "VTV", "HTV"].forEach(g => {
-            const list = channels.filter(c => c.group === g);
-            const header = document.createElement('div');
-            header.className = 'group-header'; header.innerText = g;
-            mainList.appendChild(header);
-            list.forEach(channel => {
-                const item = document.createElement('div');
-                item.className = 'channel-item';
-                item.innerHTML = `<div class="thumb-box"><img src="${channel.logo}"></div><div class="channel-name">${channel.name}</div>`;
-                item.onclick = () => playStream(channel, false);
-                mainList.appendChild(item);
-            });
-        });
-    }
+    // Theo dõi trạng thái thoát FS bằng phím cứng/vuốt
+    document.onfullscreenchange = document.onwebkitfullscreenchange = () => {
+        if (!document.fullscreenElement && !document.webkitIsFullScreen) {
+            floatBtn.style.display = 'block';
+        }
+    };
 
-    function playStream(channel, shouldForceFS) {
-        const isCurrentlyFS = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    function playStream(channel, forceFS) {
         document.getElementById('current-title').innerText = channel.name;
-        
         if (Hls.isSupported()) {
             hls.loadSource(channel.url); hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 video.play();
-                if (isCurrentlyFS || shouldForceFS) toggleFS();
+                if (forceFS) toggleFS();
             });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+            video.src = channel.url;
+            video.play();
+            if (forceFS) toggleFS();
         }
         overlay.classList.remove('show');
     }
 
-    function initSideNav() {
+    function initUI() {
         const side = document.getElementById('side-nav');
-        side.innerHTML = "<div class='side-header'>🔥 PHỔ BIẾN</div>";
-        // Pin 3 kênh hot
-        channels.filter(c => ["vl1", "v1", "v3"].includes(c.id)).forEach(c => addSideItem(side, c));
+        const main = document.getElementById('main-list');
+        side.innerHTML = "<div style='padding:15px; font-size:12px; color:red; font-weight:bold'>DANH SÁCH 16 KÊNH</div>";
         
-        side.innerHTML += "<div class='side-header'>DANH SÁCH KÊNH</div>";
-        // Các kênh còn lại
-        channels.filter(c => !["vl1", "v1", "v3"].includes(c.id)).forEach(c => addSideItem(side, c));
+        channels.forEach(c => {
+            // Sidebar
+            const sItem = document.createElement('div');
+            sItem.className = 'side-item';
+            sItem.innerHTML = `<img src="${c.logo}"><span>${c.short}</span>`;
+            sItem.onclick = (e) => { e.stopPropagation(); playStream(c, true); };
+            side.appendChild(sItem);
+
+            // Main List (Mobile only)
+            if(main) {
+                const mItem = document.createElement('div');
+                mItem.className = 'channel-item';
+                mItem.innerHTML = `<div class="thumb-box"><img src="${c.logo}"></div><div class="channel-name">${c.name}</div>`;
+                mItem.onclick = () => playStream(c, false);
+                main.appendChild(mItem);
+            }
+        });
     }
 
-    function addSideItem(parent, channel) {
-        const div = document.createElement('div');
-        div.className = 'side-item';
-        div.innerHTML = `<img src="${channel.logo}"><span>${channel.short}</span>`;
-        div.onclick = (e) => { e.stopPropagation(); playStream(channel, true); };
-        parent.appendChild(div);
-    }
-
-    window.onload = () => { 
-        renderMainList(); 
-        initSideNav(); 
-        playStream(channels[0], false); 
-    };
+    window.onload = () => { initUI(); playStream(channels[0], false); };
 </script>
 </body>
 </html>
