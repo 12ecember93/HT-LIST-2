@@ -18,7 +18,7 @@ https://live.fptplay53.net/fnxhd1/vtv7hd_vhls.smil/chunklist_b5000000.m3u8
 https://live.fptplay53.net/epzhd1/vtv8hd_vhls.smil/chunklist.m3u8
 #EXTINF:-1 tvg-logo="https://vn.xemtv.net/image/vtv9.png",VTV9
 https://toiyeuvietnam.dpdns.org/TuyetDoiKhongKinhDoanh/vtv9-hd/KenhCoBan.m3u8
-#EXTINF:-1 tvg-logo="https://vn.xemtv.net/image/vietnamtoday.png",Vietnam Today
+#EXTINF:-1 tvg-logo="https://img-ali1.tv360.vn/image1/2025/12/05/09/1764903286193/46f72417f718_480_270.png",Vietnam Today
 https://live.fptplay53.net/fnxhd1/vntoday_vhls.smil/chunklist_b5000000.m3u8
 #EXTINF:-1 tvg-logo="https://vn.xemtv.net/image/htv1.png",HTV1
 https://live.fptplay53.net/epzhd1/htv1_hls.smil/chunklist.m3u8
@@ -32,17 +32,17 @@ https://live.fptplay53.net/epzhd1/htv4_hls.smil/chunklist.m3u8
 https://live.fptplay53.net/epzhd1/htv9hd_vhls.smil/chunklist.m3u8
 
 #EXTGROUP:Nguồn Dự Phòng (TV)
-#EXTINF:-1,VTV1 HD
+#EXTINF:-1 tvg-logo="https://vn.xemtv.net/image/vtv1.png",VTV1
 https://toiyeuvietnam.dpdns.org/TuyetDoiKhongKinhDoanh/vtv1-hd/KenhCoBan.m3u8
-#EXTINF:-1,VTV2 HD
+#EXTINF:-1 tvg-logo="https://vn.xemtv.net/image/vtv2.png",VTV2
 https://toiyeuvietnam.dpdns.org/TuyetDoiKhongKinhDoanh/vtv2-hd/KenhCoBan.m3u8
-#EXTINF:-1,VTV3 HD
+#EXTINF:-1 tvg-logo="https://vn.xemtv.net/image/vtv3.png",VTV3
 https://toiyeuvietnam.dpdns.org/TuyetDoiKhongKinhDoanh/vtv3-hd/KenhCoBan.m3u8
-#EXTINF:-1,VTV4 HD
+#EXTINF:-1 tvg-logo="https://vn.xemtv.net/image/vtv4.png",VTV4
 https://toiyeuvietnam.dpdns.org/TuyetDoiKhongKinhDoanh/vtv4-hd/KenhCoBan.m3u8
-#EXTINF:-1,VTV5 HD
+#EXTINF:-1 tvg-logo="https://vn.xemtv.net/image/vtv5.png",VTV5
 https://toiyeuvietnam.dpdns.org/TuyetDoiKhongKinhDoanh/vtv5-hd/KenhCoBan.m3u8
-#EXTINF:-1,HTV7 HD
+#EXTINF:-1 tvg-logo="https://vn.xemtv.net/image/htv7.png",HTV7
 https://toiyeuvietnam.dpdns.org/TuyetDoiKhongKinhDoanh/htv7-hd/KenhCoBan.m3u8
-#EXTINF:-1,HTV9 HD
+#EXTINF:-1 tvg-logo="https://vn.xemtv.net/image/htv9.png",HTV9
 https://toiyeuvietnam.dpdns.org/TuyetDoiKhongKinhDoanh/htv9-hd/KenhCoBan.m3u8
