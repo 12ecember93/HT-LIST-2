@@ -3,25 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TV PRO - FAST START</title>
+    <title>TV PRO - HYBRID</title>
     <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/12ecember93/HT-iptv/main/httv.jpg">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        :root { --bg-dark: #000; --yellow: #ffcc00; }
+        :root { --bg-dark: #000; --yellow: #ffcc00; --focus-bg: rgba(255, 255, 255, 0.2); }
         body { font-family: sans-serif; background: var(--bg-dark); color: #fff; margin: 0; padding: 0; overflow: hidden; }
         #video-viewport { position: relative; width: 100vw; height: 100vh; background: #000; }
         video { width: 100%; height: 100%; object-fit: contain; }
         
-        /* UI Danh sách kênh */
+        /* Sidebar đa năng */
         .controls-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.3s; z-index: 50; pointer-events: none; }
         .controls-overlay.active { opacity: 1; pointer-events: auto; }
-        .sidebar { width: 140px; height: 100%; background: rgba(10,10,10,0.95); transform: translateX(-100%); transition: transform 0.3s; overflow-y: auto; border-right: 1px solid #333; }
+        .sidebar { width: 160px; height: 100%; background: rgba(10,10,10,0.95); transform: translateX(-100%); transition: transform 0.3s; overflow-y: auto; border-right: 1px solid #333; pointer-events: auto; }
         .controls-overlay.active .sidebar { transform: translateX(0); }
-        .side-item { padding: 15px 10px; border-bottom: 1px solid #222; text-align: center; opacity: 0.5; }
-        .side-item.active { opacity: 1; border-left: 4px solid var(--yellow); background: rgba(255,204,0,0.1); }
-        .side-item img { max-width: 100%; max-height: 45px; object-fit: contain; }
+        
+        .side-item { padding: 15px 10px; border-bottom: 1px solid #222; text-align: center; opacity: 0.5; outline: none; cursor: pointer; transition: 0.2s; }
+        .side-item.active { opacity: 1; border-left: 5px solid var(--yellow); background: rgba(255,204,0,0.1); }
+        
+        /* Hiệu ứng Focus cho Android TV D-pad */
+        .side-item:focus, .side-item.tv-focus { opacity: 1; background: var(--focus-bg); outline: 3px solid #fff; }
+        .side-item img { max-width: 100%; max-height: 50px; pointer-events: none; }
 
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--yellow); font-weight: bold; z-index: 60; text-shadow: 0 0 10px #000; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--yellow); font-weight: bold; z-index: 60; }
     </style>
 </head>
 <body>
@@ -40,38 +44,28 @@
     const view = document.getElementById('video-viewport');
     const overlay = document.getElementById('ui-overlay');
     const loader = document.getElementById('loading');
-    let hls = new Hls({ autoStartLoad: true });
+    const sideContent = document.getElementById('sidebar-content');
+    
+    let hls = new Hls();
     let uiTimer, channels = [];
-
-    // Tự động vào Fullscreen khi video phát
-    function requestFS() {
-        if (view.requestFullscreen) view.requestFullscreen();
-        else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
-        if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
-    }
+    let currentIndex = 0;
 
     function playChannel(c) {
         loader.style.display = 'block';
+        v.muted = false; // Cố gắng mở tiếng khi người dùng chọn kênh
+        
         document.querySelectorAll('.side-item').forEach(el => el.classList.remove('active'));
         const activeItem = document.querySelector(`[data-url="${c.url}"]`);
-        if(activeItem) activeItem.classList.add('active');
+        if(activeItem) {
+            activeItem.classList.add('active');
+            currentIndex = Array.from(document.querySelectorAll('.side-item')).indexOf(activeItem);
+        }
 
         if (Hls.isSupported()) {
-            hls.detachMedia();
-            hls.loadSource(c.url);
-            hls.attachMedia(v);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                v.play().then(() => {
-                    requestFS(); // Thử vào Fullscreen ngay khi phát thành công
-                    v.muted = false; // Mở tiếng lại
-                }).catch(err => {
-                    console.log("Autoplay retry...");
-                    v.play(); // Thử lại lần nữa
-                });
-            });
+            hls.detachMedia(); hls.loadSource(c.url); hls.attachMedia(v);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => { v.play(); });
         } else {
-            v.src = c.url;
-            v.play();
+            v.src = c.url; v.play();
         }
     }
 
@@ -79,42 +73,68 @@
 
     function toggleUI() {
         overlay.classList.add('active');
+        // Focus vào kênh đang phát khi mở menu
+        const active = document.querySelector('.side-item.active');
+        if(active) active.focus();
+        
         clearTimeout(uiTimer);
-        uiTimer = setTimeout(() => overlay.classList.remove('active'), 3000);
+        uiTimer = setTimeout(() => overlay.classList.remove('active'), 5000);
     }
 
     async function init() {
         try {
             const res = await fetch('playlist.json');
             const data = await res.json();
-            channels = Object.values(data).flat();
-            
-            const side = document.getElementById('sidebar-content');
-            channels.forEach(c => {
+            let rawChannels = Object.values(data).flat();
+
+            // 1. Đưa THVL1 lên đầu sidebar
+            const thvl1 = rawChannels.find(c => c.short === 'THVL1');
+            const others = rawChannels.filter(c => c.short !== 'THVL1');
+            channels = thvl1 ? [thvl1, ...others] : rawChannels;
+
+            channels.forEach((c, index) => {
                 const item = document.createElement('div');
                 item.className = 'side-item';
+                item.tabIndex = 0; // Quan trọng để nhận D-pad focus
                 item.setAttribute('data-url', c.url);
-                item.innerHTML = `<img src="${c.logo}" loading="lazy">`;
+                item.innerHTML = `<img src="${c.logo}">`;
+                
                 item.onclick = (e) => { e.stopPropagation(); playChannel(c); };
-                side.appendChild(item);
+                sideContent.appendChild(item);
             });
 
-            // PHÁT NGAY KÊNH MẶC ĐỊNH
+            // 2. Mở app phát VTV1 mặc định (không thay đổi)
             const vtv1 = channels.find(c => c.short === 'VTV1') || channels[0];
             if(vtv1) playChannel(vtv1);
 
         } catch (e) { loader.innerText = "LỖI TẢI KÊNH"; }
     }
 
-    // Chạy ngay khi DOM sẵn sàng
-    window.addEventListener('DOMContentLoaded', init);
-
-    // Hỗ trợ Remote Android TV (Bấm bất kỳ phím nào cũng sẽ thử mở tiếng và Fullscreen)
+    // Xử lý D-pad cho Android TV
     document.addEventListener('keydown', (e) => {
-        v.muted = false;
-        requestFS();
-        if (e.keyCode === 13 || e.keyCode === 23) toggleUI();
+        const items = document.querySelectorAll('.side-item');
+        if (!overlay.classList.contains('active')) {
+            if ([13, 23, 19, 20, 21, 22].includes(e.keyCode)) toggleUI();
+            return;
+        }
+
+        clearTimeout(uiTimer); // Reset timer khi đang bấm
+        uiTimer = setTimeout(() => overlay.classList.remove('active'), 5000);
+
+        if (e.keyCode === 40) { // DOWN
+            currentIndex = (currentIndex + 1) % items.length; // Wrap around
+            items[currentIndex].focus();
+            items[currentIndex].scrollIntoView({ block: 'center' });
+        } else if (e.keyCode === 38) { // UP
+            currentIndex = (currentIndex - 1 + items.length) % items.length; // Wrap around
+            items[currentIndex].focus();
+            items[currentIndex].scrollIntoView({ block: 'center' });
+        } else if (e.keyCode === 13 || e.keyCode === 23 || e.keyCode === 39) { // ENTER hoặc RIGHT
+            playChannel(channels[currentIndex]);
+        }
     });
+
+    window.onload = init;
 </script>
 </body>
 </html>
