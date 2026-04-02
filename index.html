@@ -9,20 +9,29 @@
     <style>
         :root { --bg-dark: #0f0f0f; --blue: #0056b3; --green: #00ff00; --yellow: #ffcc00; }
         body { font-family: sans-serif; background: var(--bg-dark); color: #fff; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
-        
+
+        /* ── TV MODE ── */
+        body.tv-mode { overflow: hidden; }
+        body.tv-mode #video-viewport { width: 100vw; height: 100vh; aspect-ratio: unset; position: fixed; top: 0; left: 0; z-index: 1; }
+        body.tv-mode .btn-group { display: none !important; }
+        body.tv-mode .info { display: none; }
+        body.tv-mode #main-content { display: none; }
+        body.tv-mode #btn-exit { display: none !important; }
+
         #video-viewport { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; z-index: 10; }
         video { width: 100%; height: 100%; object-fit: contain; }
 
         .stats-overlay { color: var(--green); font-family: monospace; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; pointer-events: none; z-index: 100; font-size: 10px; }
         #fs-stats { position: absolute; top: 10px; right: 10px; display: none; }
-        body.is-fs .controls-overlay.active #fs-stats { display: block; }
+        body.is-fs .controls-overlay.active #fs-stats,
+        body.tv-mode .controls-overlay.active #fs-stats { display: block; }
 
         .controls-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.2s; z-index: 50; pointer-events: none; }
         .controls-overlay.active { opacity: 1; pointer-events: auto; }
 
-        .sidebar { 
-            width: 140px; height: 100%; background: rgba(15,15,15,0.98); 
-            transform: translateX(-100%); transition: transform 0.2s; 
+        .sidebar {
+            width: 140px; height: 100%; background: rgba(15,15,15,0.98);
+            transform: translateX(-100%); transition: transform 0.2s;
             overflow-y: auto; border-right: 1px solid #333;
             pointer-events: auto; position: relative;
         }
@@ -47,7 +56,7 @@
         .btn-group { position: fixed; bottom: 20px; right: 20px; display: flex; gap: 10px; z-index: 999; }
         .action-btn { background: var(--blue); color: white; border: 1.5px solid #fff; padding: 12px 18px; border-radius: 50px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
         .action-btn.tv-focus { outline: 3px solid #fff; transform: scale(1.1); }
-        
+
         body.is-fs #btn-enter, body.is-fs #btn-reload { display: none; }
         #btn-exit { display: none; position: absolute; bottom: 20px; right: 20px; }
         body.is-fs #btn-exit { display: block; }
@@ -83,14 +92,28 @@
 <div class="mobile-container" id="main-content"></div>
 
 <script>
+    // ============================================================
+    // DETECT TV
+    // ============================================================
+    const IS_TV = (() => {
+        const ua = navigator.userAgent.toLowerCase();
+        const tvUA = /tv|smarttv|googletv|android tv|webos|tizen|netcast|opera tv|hbbtv|ce-html/.test(ua);
+        const noTouch = !('ontouchstart' in window) && navigator.maxTouchPoints === 0;
+        const bigScreen = window.screen.width >= 960;
+        return tvUA || (noTouch && bigScreen);
+    })();
+
+    if (IS_TV) document.body.classList.add('tv-mode');
+    // ============================================================
+
     const v = document.getElementById('main-video'), view = document.getElementById('video-viewport');
     const overlay = document.getElementById('ui-overlay'), wStats = document.getElementById('web-stats'), fStats = document.getElementById('fs-stats'), sStats = document.getElementById('sb-stats'), spinner = document.getElementById('loading-spinner');
-    
-    let hls = new Hls({ 
-        enableWorker: true, 
+
+    let hls = new Hls({
+        enableWorker: true,
         manifestLoadingMaxRetry: 10,
         levelLoadingMaxRetry: 10,
-        fragLoadingMaxRetry: 10 
+        fragLoadingMaxRetry: 10
     });
 
     let uiTimer, lastTime = 0, frameCount = 0, fps = 0, statsInterval;
@@ -117,28 +140,28 @@
 
     function showUI() {
         overlay.classList.add('active');
-        updateStats(); 
-        if(!statsInterval) statsInterval = setInterval(updateStats, 1000);
+        updateStats();
+        if (!statsInterval) statsInterval = setInterval(updateStats, 1000);
         clearTimeout(uiTimer);
         uiTimer = setTimeout(() => {
             overlay.classList.remove('active');
             clearInterval(statsInterval);
             statsInterval = null;
-        }, 3000);
+        }, IS_TV ? 5000 : 3000);
     }
 
     function handleFS(enter, e) {
-        if(e) e.stopPropagation();
-        if(enter) {
-            if(v.webkitEnterFullscreen) v.webkitEnterFullscreen();
-            else if(view.requestFullscreen) view.requestFullscreen();
-            else if(v.requestFullscreen) v.requestFullscreen();
-            if(screen.orientation && screen.orientation.lock) {
+        if (e) e.stopPropagation();
+        if (enter) {
+            if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+            else if (view.requestFullscreen) view.requestFullscreen();
+            else if (v.requestFullscreen) v.requestFullscreen();
+            if (screen.orientation && screen.orientation.lock) {
                 screen.orientation.lock('landscape').catch(() => {});
             }
         } else {
-            if(document.exitFullscreen) document.exitFullscreen();
-            else if(document.webkitExitFullscreen) document.webkitExitFullscreen();
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         }
     }
 
@@ -168,10 +191,10 @@
                 spinner.style.display = 'none';
             });
         } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
-            v.src = c.url; 
+            v.src = c.url;
             v.play().catch(() => {});
         }
-        if(!document.body.classList.contains('is-fs')) {
+        if (!IS_TV && !document.body.classList.contains('is-fs')) {
             setTimeout(() => overlay.classList.remove('active'), 500);
         }
     }
@@ -179,15 +202,13 @@
     // ============================================================
     // D-PAD REMOTE NAVIGATION (Android TV)
     // ============================================================
-    let tvFocusIndex = 0;
-    let tvItems = [];
+    let tvFocusIndex = 0, tvItems = [];
 
     function getTvItems() {
-        // Lấy tất cả item có thể focus theo thứ tự hiển thị
         return Array.from(document.querySelectorAll(
             overlay.classList.contains('active')
                 ? '.side-item, #btn-exit'
-                : '.grid-item, #btn-reload, #btn-enter'
+                : (IS_TV ? [] : '.grid-item, #btn-reload, #btn-enter')
         ));
     }
 
@@ -203,7 +224,6 @@
     document.addEventListener('keydown', function(e) {
         const KEY = { UP: 38, DOWN: 40, LEFT: 37, RIGHT: 39, OK: 13, BACK: 8, MENU: 18 };
 
-        // Nút BACK / MENU → ẩn/hiện UI
         if (e.keyCode === KEY.BACK || e.keyCode === KEY.MENU) {
             e.preventDefault();
             if (overlay.classList.contains('active')) {
@@ -216,8 +236,7 @@
             return;
         }
 
-        // Nếu UI chưa hiện → mọi phím mũi tên đều mở UI
-        if (!overlay.classList.contains('active') && (e.keyCode === KEY.UP || e.keyCode === KEY.DOWN || e.keyCode === KEY.LEFT || e.keyCode === KEY.RIGHT)) {
+        if (!overlay.classList.contains('active') && [KEY.UP, KEY.DOWN, KEY.LEFT, KEY.RIGHT].includes(e.keyCode)) {
             e.preventDefault();
             showUI();
             setTvFocus(0);
@@ -226,39 +245,25 @@
 
         tvItems = getTvItems();
         if (!tvItems.length) return;
-
-        // Tính số cột của grid (3 cột)
         const cols = 3;
 
         if (e.keyCode === KEY.UP) {
             e.preventDefault();
-            // Nếu đang trong grid → nhảy lên 1 hàng (3 item)
             const cur = tvItems[tvFocusIndex];
-            if (cur && cur.classList.contains('grid-item')) {
-                setTvFocus(tvFocusIndex - cols);
-            } else {
-                setTvFocus(tvFocusIndex - 1);
-            }
+            setTvFocus(cur && cur.classList.contains('grid-item') ? tvFocusIndex - cols : tvFocusIndex - 1);
         } else if (e.keyCode === KEY.DOWN) {
             e.preventDefault();
             const cur = tvItems[tvFocusIndex];
-            if (cur && cur.classList.contains('grid-item')) {
-                setTvFocus(tvFocusIndex + cols);
-            } else {
-                setTvFocus(tvFocusIndex + 1);
-            }
+            setTvFocus(cur && cur.classList.contains('grid-item') ? tvFocusIndex + cols : tvFocusIndex + 1);
         } else if (e.keyCode === KEY.LEFT) {
-            e.preventDefault();
-            setTvFocus(tvFocusIndex - 1);
+            e.preventDefault(); setTvFocus(tvFocusIndex - 1);
         } else if (e.keyCode === KEY.RIGHT) {
-            e.preventDefault();
-            setTvFocus(tvFocusIndex + 1);
+            e.preventDefault(); setTvFocus(tvFocusIndex + 1);
         } else if (e.keyCode === KEY.OK) {
             e.preventDefault();
             if (tvItems[tvFocusIndex]) tvItems[tvFocusIndex].click();
         }
 
-        // Reset timer ẩn UI mỗi lần bấm phím
         clearTimeout(uiTimer);
         uiTimer = setTimeout(() => {
             overlay.classList.remove('active');
@@ -271,10 +276,10 @@
 
     async function init() {
         try {
-            const response = await fetch('playlist.json');
-            const groups = await response.json();
+            const res = await fetch('playlist.json');
+            const groups = await res.json();
             const side = document.getElementById('sidebar-content'), main = document.getElementById('main-content');
-            
+
             Object.values(groups).flat().forEach(c => {
                 const sItem = document.createElement('div'); sItem.className = 'side-item';
                 sItem.setAttribute('data-url', c.url);
@@ -293,7 +298,22 @@
                 });
                 main.appendChild(title); main.appendChild(grid);
             }
-            play(groups["VTV"][0]);
+
+            // Phát VTV1 mặc định, tự fullscreen nếu là TV
+            const defaultCh = groups["VTV"] && groups["VTV"].find(c => c.name === "VTV1") || groups["VTV"]?.[0] || Object.values(groups).flat()[0];
+            play(defaultCh);
+
+            if (IS_TV) {
+                // Chờ user gesture hoặc tự thử fullscreen
+                const tryFS = () => {
+                    if (view.requestFullscreen) view.requestFullscreen().catch(() => {});
+                    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+                };
+                // Android TV WebView thường cho phép autoplay + fullscreen ngay
+                v.addEventListener('canplay', () => { tryFS(); }, { once: true });
+                // Fallback: click anywhere to trigger
+                document.addEventListener('click', tryFS, { once: true });
+            }
         } catch (e) { console.error("Lỗi:", e); }
     }
     init();
