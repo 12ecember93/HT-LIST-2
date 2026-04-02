@@ -3,15 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TV</title>
+    <title>TV PRO</title>
     <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/12ecember93/HT-iptv/main/httv.jpg">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
         :root { --bg-dark: #0f0f0f; --blue: #0056b3; --green: #00ff00; --yellow: #ffcc00; }
-        body { font-family: sans-serif; background: var(--bg-dark); color: #fff; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; overflow-x: hidden; }
+        body { font-family: sans-serif; background: var(--bg-dark); color: #fff; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; overflow: hidden; }
 
-        #video-viewport { position: relative; width: 100%; aspect-ratio: 16/9; background: #000; overflow: hidden; z-index: 10; }
+        #video-viewport { 
+            position: relative; width: 100vw; height: 100vh; background: #000 no-repeat center center; 
+            background-size: contain; overflow: hidden; z-index: 10; 
+        }
         video { width: 100%; height: 100%; object-fit: contain; }
+
+        /* Lớp phủ kích hoạt Fullscreen khi mở App */
+        #start-layer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 9999; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; text-align: center;
+        }
 
         .stats-overlay { color: var(--green); font-family: monospace; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; pointer-events: none; z-index: 100; font-size: 10px; }
         #fs-stats { position: absolute; top: 10px; right: 10px; display: none; }
@@ -27,242 +38,115 @@
             pointer-events: auto; position: relative;
         }
         .controls-overlay.active .sidebar { transform: translateX(0); }
-        #sb-stats { position: absolute; top: 5px; right: 5px; }
-
-        .side-item { padding: 15px 10px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: center; min-height: 60px; opacity: 0.5; transition: 0.2s; cursor: pointer; }
+        
+        .side-item { padding: 15px 10px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: center; min-height: 60px; opacity: 0.5; transition: 0.2s; }
         .side-item.active { opacity: 1; border-left: 4px solid var(--yellow); background: rgba(255,204,0,0.1); }
         .side-item.tv-focus { opacity: 1; outline: 3px solid #fff; background: rgba(255,255,255,0.15); }
         .side-item img { max-width: 100%; max-height: 45px; object-fit: contain; }
 
-        .mobile-container { padding: 15px; padding-bottom: 100px; }
-        .group-title { color: var(--yellow); font-size: 14px; font-weight: bold; margin: 20px 0 10px; border-left: 3px solid var(--yellow); padding-left: 10px; }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .grid-item { background: #1a1a1a; border-radius: 8px; border: 1px solid #333; height: 80px; display: flex; align-items: center; justify-content: center; overflow: hidden; transition: 0.2s; cursor: pointer; }
-        .grid-item.active { border-color: var(--yellow); background: #2a2a2a; }
-        .grid-item.tv-focus { border-color: #fff; background: #2a2a2a; outline: 3px solid #fff; transform: scale(1.05); }
-        .grid-item img { width: 85%; height: 85%; object-fit: contain; }
-
         #loading-spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; color: var(--yellow); font-weight: bold; z-index: 20; text-shadow: 0 0 10px #000; }
-
-        .btn-group { position: fixed; bottom: 20px; right: 20px; display: flex; gap: 10px; z-index: 999; }
-        .action-btn { background: var(--blue); color: white; border: 1.5px solid #fff; padding: 12px 18px; border-radius: 50px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
-        .action-btn.tv-focus { outline: 3px solid #fff; transform: scale(1.1); }
-
-        body.is-fs #btn-enter, body.is-fs #btn-reload { display: none; }
-        #btn-exit { display: none; position: absolute; bottom: 20px; right: 20px; }
+        .action-btn { background: var(--blue); color: white; border: 1.5px solid #fff; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; position: absolute; bottom: 20px; right: 20px; display: none; }
         body.is-fs #btn-exit { display: block; }
-
-        .info { padding: 10px 15px; }
     </style>
 </head>
-<body>
+<body class="is-fs">
+
+<div id="start-layer" onclick="startApp()">
+    <img src="https://raw.githubusercontent.com/12ecember93/HT-iptv/main/httv.jpg" style="width:100px; border-radius:20px; margin-bottom:20px;">
+    <div style="font-size:18px; font-weight:bold;">CHẠM ĐỂ XEM TV</div>
+</div>
 
 <div id="video-viewport" onclick="showUI()">
     <div id="loading-spinner">ĐANG KẾT NỐI...</div>
-    <video id="main-video" autoplay playsinline webkit-playsinline></video>
+    <video id="main-video" autoplay playsinline></video>
     <div id="fs-stats" class="stats-overlay">0 Mbps | 0 fps</div>
+    
     <div class="controls-overlay" id="ui-overlay">
         <div class="sidebar" id="side-list" onclick="event.stopPropagation()">
-            <div id="sb-stats" class="stats-overlay">...</div>
-            <div id="sidebar-content" style="margin-top: 40px;"></div>
+            <div id="sidebar-content" style="margin-top: 20px;"></div>
         </div>
         <button id="btn-exit" class="action-btn" onclick="handleFS(false, event)">THOÁT</button>
     </div>
 </div>
 
-<div class="btn-group">
-    <button id="btn-reload" class="action-btn" style="background:#333" onclick="location.reload()">↻</button>
-    <button id="btn-enter" class="action-btn" onclick="handleFS(true, event)">TOÀN MÀN HÌNH</button>
-</div>
-
-<div class="info">
-    <h2 id="now-playing" style="margin:0; font-size:18px; color:var(--yellow);">Đang tải danh sách...</h2>
-    <div id="web-stats" class="stats-overlay">0x0 | 0 Mbps | 0 fps</div>
-</div>
-
-<div class="mobile-container" id="main-content"></div>
-
 <script>
     const v = document.getElementById('main-video'), view = document.getElementById('video-viewport');
-    const overlay = document.getElementById('ui-overlay'), wStats = document.getElementById('web-stats'), fStats = document.getElementById('fs-stats'), sStats = document.getElementById('sb-stats'), spinner = document.getElementById('loading-spinner');
+    const overlay = document.getElementById('ui-overlay'), fStats = document.getElementById('fs-stats'), spinner = document.getElementById('loading-spinner');
+    let hls = new Hls({ enableWorker: true });
+    let uiTimer, fps = 0, frameCount = 0, lastTime = 0, channels = [];
 
-    let hls = new Hls({
-        enableWorker: true,
-        manifestLoadingMaxRetry: 10,
-        levelLoadingMaxRetry: 10,
-        fragLoadingMaxRetry: 10
-    });
-
-    let uiTimer, lastTime = 0, frameCount = 0, fps = 0, statsInterval;
-
-    hls.on(Hls.Events.ERROR, (e, data) => {
-        if (data.fatal) {
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-            else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-        }
-    });
-    hls.on(Hls.Events.BUFFER_FLUSHING, () => spinner.style.display = 'block');
-    hls.on(Hls.Events.BUFFER_APPENDED, () => spinner.style.display = 'none');
-
-    function updateStats() {
-        if (v.readyState > 0 && overlay.classList.contains('active')) {
-            const level = hls.levels[hls.currentLevel] || {};
-            const mbps = level.bitrate ? (level.bitrate / 1000000).toFixed(1) + " Mbps" : "Auto";
-            const combined = `${mbps} | ${fps} fps`;
-            fStats.innerText = combined; sStats.innerText = combined;
-            wStats.innerText = `${v.videoWidth}x${v.videoHeight} | ${combined}`;
-        }
-    }
-
-    function showUI() {
-        overlay.classList.add('active');
-        updateStats();
-        if (!statsInterval) statsInterval = setInterval(updateStats, 1000);
-        clearTimeout(uiTimer);
-        uiTimer = setTimeout(() => {
-            overlay.classList.remove('active');
-            clearInterval(statsInterval);
-            statsInterval = null;
-        }, 5000);
+    // Tự động vào Fullscreen & Phát VTV1
+    function startApp() {
+        document.getElementById('start-layer').style.display = 'none';
+        handleFS(true);
+        const vtv1 = channels.find(c => c.short === 'VTV1') || channels[0];
+        if(vtv1) play(vtv1);
     }
 
     function handleFS(enter, e) {
         if (e) e.stopPropagation();
         if (enter) {
-            if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
-            else if (view.requestFullscreen) view.requestFullscreen();
-            else if (v.requestFullscreen) v.requestFullscreen();
+            if (view.requestFullscreen) view.requestFullscreen();
+            else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
             if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
         } else {
             if (document.exitFullscreen) document.exitFullscreen();
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         }
     }
 
-    const checkFS = () => document.body.classList.toggle('is-fs', !!(document.fullscreenElement || document.webkitIsFullScreen || document.webkitDisplayingFullscreen));
-    document.addEventListener('fullscreenchange', checkFS);
-    document.addEventListener('webkitfullscreenchange', checkFS);
-    v.addEventListener('webkitbeginfullscreen', () => document.body.classList.add('is-fs'));
-    v.addEventListener('webkitendfullscreen', () => document.body.classList.remove('is-fs'));
-
-    (function fpsLoop() {
-        if (!v.paused) { frameCount++; const now = performance.now(); if (now - lastTime >= 1000) { fps = frameCount; frameCount = 0; lastTime = now; } }
-        requestAnimationFrame(fpsLoop);
-    })();
-
-    function play(c) {
-        if (v.src && v.src.includes(c.url)) return;
-        document.getElementById('now-playing').innerText = c.name;
-        spinner.style.display = 'block';
-        document.querySelectorAll('.side-item, .grid-item').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll(`[data-url="${c.url}"]`).forEach(el => el.classList.add('active'));
-        if (Hls.isSupported()) {
-            hls.detachMedia();
-            hls.loadSource(c.url);
-            hls.attachMedia(v);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => { v.play().catch(() => {}); spinner.style.display = 'none'; });
-        } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
-            v.src = c.url; v.play().catch(() => {});
-        }
-        if (!document.body.classList.contains('is-fs')) {
-            setTimeout(() => overlay.classList.remove('active'), 500);
-        }
-    }
-
-    // ── D-PAD + WRAP SIDEBAR ──────────────────────────────────
-    let tvFocusIndex = 0, tvItems = [];
-
-    function getSideItems() {
-        return Array.from(document.querySelectorAll('.side-item'));
-    }
-
-    function setTvFocus(idx) {
-        tvItems = getSideItems();
-        if (!tvItems.length) return;
-        // Wrap around
-        if (idx < 0) idx = tvItems.length - 1;
-        if (idx >= tvItems.length) idx = 0;
-        tvItems.forEach(el => el.classList.remove('tv-focus'));
-        tvFocusIndex = idx;
-        tvItems[tvFocusIndex].classList.add('tv-focus');
-        tvItems[tvFocusIndex].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-
-    document.addEventListener('keydown', function(e) {
-        const KEY = { UP: 38, DOWN: 40, LEFT: 37, RIGHT: 39, OK: 13, BACK: 8, MENU: 18 };
-
-        if (e.keyCode === KEY.BACK || e.keyCode === KEY.MENU) {
-            e.preventDefault();
-            if (overlay.classList.contains('active')) {
-                overlay.classList.remove('active');
-                tvItems.forEach(el => el.classList.remove('tv-focus'));
-            } else { showUI(); setTvFocus(0); }
-            return;
-        }
-
-        if (!overlay.classList.contains('active') && [KEY.UP, KEY.DOWN, KEY.LEFT, KEY.RIGHT].includes(e.keyCode)) {
-            e.preventDefault(); showUI(); setTvFocus(tvFocusIndex); return;
-        }
-
-        if (!overlay.classList.contains('active')) return;
-
-        if (e.keyCode === KEY.UP) { e.preventDefault(); setTvFocus(tvFocusIndex - 1); }
-        else if (e.keyCode === KEY.DOWN) { e.preventDefault(); setTvFocus(tvFocusIndex + 1); }
-        else if (e.keyCode === KEY.OK || e.keyCode === KEY.RIGHT) {
-            e.preventDefault();
-            tvItems = getSideItems();
-            if (tvItems[tvFocusIndex]) tvItems[tvFocusIndex].click();
-        }
-
+    function showUI() {
+        overlay.classList.add('active');
         clearTimeout(uiTimer);
         uiTimer = setTimeout(() => {
             overlay.classList.remove('active');
-            tvItems.forEach(el => el.classList.remove('tv-focus'));
-            clearInterval(statsInterval); statsInterval = null;
-        }, 5000);
-    });
-    // ─────────────────────────────────────────────────────────
+        }, 2000); // Ẩn sau 2 giây
+    }
+
+    function play(c) {
+        view.style.backgroundImage = `url('${c.logo}')`; 
+        spinner.style.display = 'block';
+        document.querySelectorAll('.side-item').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll(`[data-url="${c.url}"]`).forEach(el => el.classList.add('active'));
+
+        if (Hls.isSupported()) {
+            hls.detachMedia(); hls.loadSource(c.url); hls.attachMedia(v);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => { v.play(); spinner.style.display = 'none'; });
+        } else {
+            v.src = c.url; v.play();
+        }
+        v.onplaying = () => { view.style.backgroundImage = 'none'; };
+    }
 
     async function init() {
         try {
             const res = await fetch('playlist.json');
-            const groups = await res.json();
-            const side = document.getElementById('sidebar-content'), main = document.getElementById('main-content');
-
-            // Flatten tất cả kênh, đưa THVL1 lên đầu sidebar
-            const allChannels = Object.values(groups).flat();
-            const thvl1Idx = allChannels.findIndex(c => c.short === 'THVL1');
-            if (thvl1Idx > 0) { const [ch] = allChannels.splice(thvl1Idx, 1); allChannels.unshift(ch); }
-
-            // Render sidebar (thứ tự đã có THVL1 đầu)
-            allChannels.forEach(c => {
-                const sItem = document.createElement('div'); sItem.className = 'side-item';
+            const data = await res.json();
+            channels = Object.values(data).flat();
+            const side = document.getElementById('sidebar-content');
+            
+            channels.forEach(c => {
+                const sItem = document.createElement('div');
+                sItem.className = 'side-item';
                 sItem.setAttribute('data-url', c.url);
-                sItem.innerHTML = `<img src="${c.logo}" loading="lazy" title="${c.name}">`;
+                sItem.innerHTML = `<img src="${c.logo}" loading="lazy">`;
                 sItem.onclick = () => play(c);
                 side.appendChild(sItem);
             });
-
-            // Render grid giữ nguyên thứ tự nhóm gốc
-            for (let name in groups) {
-                const title = document.createElement('div'); title.className = 'group-title'; title.innerText = name;
-                const grid = document.createElement('div'); grid.className = 'grid';
-                groups[name].forEach(c => {
-                    const gItem = document.createElement('div'); gItem.className = 'grid-item';
-                    gItem.setAttribute('data-url', c.url);
-                    gItem.innerHTML = `<img src="${c.logo}" loading="lazy" title="${c.name}">`;
-                    gItem.onclick = () => play(c);
-                    grid.appendChild(gItem);
-                });
-                main.appendChild(title); main.appendChild(grid);
-            }
-
-            // Mở VTV1 mặc định
-            const vtv1 = allChannels.find(c => c.short === 'VTV1') || allChannels[0];
-            play(vtv1);
-
-        } catch (e) { console.error("Lỗi:", e); }
+        } catch (e) { console.error(e); }
     }
+
+    // FPS Loop & Fullscreen Check
+    (function fpsLoop() {
+        if (!v.paused) { frameCount++; const now = performance.now(); if (now - lastTime >= 1000) { fps = frameCount; frameCount = 0; lastTime = now; } }
+        const level = hls.levels[hls.currentLevel] || {};
+        fStats.innerText = `${level.bitrate ? (level.bitrate/1000000).toFixed(1) : 0} Mbps | ${fps} fps`;
+        requestAnimationFrame(fpsLoop);
+    })();
+
+    document.addEventListener('fullscreenchange', () => {
+        document.body.classList.toggle('is-fs', !!document.fullscreenElement);
+    });
+
     init();
 </script>
 </body>
