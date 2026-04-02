@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TV PRO - AUTO START</title>
+    <title>TV PRO - FAST START</title>
     <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/12ecember93/HT-iptv/main/httv.jpg">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
@@ -12,23 +12,23 @@
         #video-viewport { position: relative; width: 100vw; height: 100vh; background: #000; }
         video { width: 100%; height: 100%; object-fit: contain; }
         
-        /* UI Danh sách kênh bên trái */
+        /* UI Danh sách kênh */
         .controls-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.3s; z-index: 50; pointer-events: none; }
         .controls-overlay.active { opacity: 1; pointer-events: auto; }
-        .sidebar { width: 150px; height: 100%; background: rgba(10,10,10,0.9); transform: translateX(-100%); transition: transform 0.3s; overflow-y: auto; }
+        .sidebar { width: 140px; height: 100%; background: rgba(10,10,10,0.95); transform: translateX(-100%); transition: transform 0.3s; overflow-y: auto; border-right: 1px solid #333; }
         .controls-overlay.active .sidebar { transform: translateX(0); }
-        .side-item { padding: 10px; border-bottom: 1px solid #222; text-align: center; cursor: pointer; opacity: 0.6; }
+        .side-item { padding: 15px 10px; border-bottom: 1px solid #222; text-align: center; opacity: 0.5; }
         .side-item.active { opacity: 1; border-left: 4px solid var(--yellow); background: rgba(255,204,0,0.1); }
-        .side-item img { max-width: 80%; height: auto; border-radius: 5px; }
+        .side-item img { max-width: 100%; max-height: 45px; object-fit: contain; }
 
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--yellow); font-size: 14px; z-index: 100; pointer-events: none; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--yellow); font-weight: bold; z-index: 60; text-shadow: 0 0 10px #000; }
     </style>
 </head>
 <body>
 
 <div id="video-viewport" onclick="toggleUI()">
-    <div id="loading">ĐANG KẾT NỐI...</div>
-    <video id="main-video" autoplay playsinline></video>
+    <div id="loading">KẾT NỐI...</div>
+    <video id="main-video" autoplay playsinline muted></video>
     
     <div class="controls-overlay" id="ui-overlay">
         <div class="sidebar" id="sidebar-content"></div>
@@ -37,16 +37,21 @@
 
 <script>
     const v = document.getElementById('main-video');
+    const view = document.getElementById('video-viewport');
     const overlay = document.getElementById('ui-overlay');
     const loader = document.getElementById('loading');
-    let hls = new Hls({ capLevelToPlayerSize: true, autoStartLoad: true });
+    let hls = new Hls({ autoStartLoad: true });
     let uiTimer, channels = [];
 
-    // HÀM QUAN TRỌNG: Phát kênh ngay lập tức
+    // Tự động vào Fullscreen khi video phát
+    function requestFS() {
+        if (view.requestFullscreen) view.requestFullscreen();
+        else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+        if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+    }
+
     function playChannel(c) {
         loader.style.display = 'block';
-        
-        // Cập nhật trạng thái menu
         document.querySelectorAll('.side-item').forEach(el => el.classList.remove('active'));
         const activeItem = document.querySelector(`[data-url="${c.url}"]`);
         if(activeItem) activeItem.classList.add('active');
@@ -56,15 +61,17 @@
             hls.loadSource(c.url);
             hls.attachMedia(v);
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                v.play().catch(() => {
-                    // Nếu bị trình duyệt chặn có tiếng, ép phát không tiếng để bypass
-                    v.muted = true;
-                    v.play();
+                v.play().then(() => {
+                    requestFS(); // Thử vào Fullscreen ngay khi phát thành công
+                    v.muted = false; // Mở tiếng lại
+                }).catch(err => {
+                    console.log("Autoplay retry...");
+                    v.play(); // Thử lại lần nữa
                 });
             });
         } else {
             v.src = c.url;
-            v.play().catch(() => { v.muted = true; v.play(); });
+            v.play();
         }
     }
 
@@ -73,10 +80,10 @@
     function toggleUI() {
         overlay.classList.add('active');
         clearTimeout(uiTimer);
-        uiTimer = setTimeout(() => overlay.classList.remove('active'), 4000);
+        uiTimer = setTimeout(() => overlay.classList.remove('active'), 3000);
     }
 
-    async function startApp() {
+    async function init() {
         try {
             const res = await fetch('playlist.json');
             const data = await res.json();
@@ -87,25 +94,25 @@
                 const item = document.createElement('div');
                 item.className = 'side-item';
                 item.setAttribute('data-url', c.url);
-                item.innerHTML = `<img src="${c.logo}">`;
+                item.innerHTML = `<img src="${c.logo}" loading="lazy">`;
                 item.onclick = (e) => { e.stopPropagation(); playChannel(c); };
                 side.appendChild(item);
             });
 
-            // MỞ LÀ CHẠY VTV1 HOẶC KÊNH ĐẦU TIÊN
+            // PHÁT NGAY KÊNH MẶC ĐỊNH
             const vtv1 = channels.find(c => c.short === 'VTV1') || channels[0];
             if(vtv1) playChannel(vtv1);
 
-        } catch (err) {
-            loader.innerText = "LỖI TẢI DANH SÁCH KÊNH";
-        }
+        } catch (e) { loader.innerText = "LỖI TẢI KÊNH"; }
     }
 
-    // Chạy ngay khi web vừa load xong
-    window.onload = startApp;
+    // Chạy ngay khi DOM sẵn sàng
+    window.addEventListener('DOMContentLoaded', init);
 
-    // Hỗ trợ Remote Android TV (Bấm OK để hiện menu)
+    // Hỗ trợ Remote Android TV (Bấm bất kỳ phím nào cũng sẽ thử mở tiếng và Fullscreen)
     document.addEventListener('keydown', (e) => {
+        v.muted = false;
+        requestFS();
         if (e.keyCode === 13 || e.keyCode === 23) toggleUI();
     });
 </script>
