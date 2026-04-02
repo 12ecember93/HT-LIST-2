@@ -3,151 +3,111 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TV PRO</title>
+    <title>TV PRO - AUTO START</title>
     <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/12ecember93/HT-iptv/main/httv.jpg">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        :root { --bg-dark: #0f0f0f; --blue: #0056b3; --green: #00ff00; --yellow: #ffcc00; }
-        body { font-family: sans-serif; background: var(--bg-dark); color: #fff; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; overflow: hidden; }
-
-        #video-viewport { 
-            position: relative; width: 100vw; height: 100vh; background: #000 no-repeat center center; 
-            background-size: contain; overflow: hidden; z-index: 10; 
-        }
+        :root { --bg-dark: #000; --yellow: #ffcc00; }
+        body { font-family: sans-serif; background: var(--bg-dark); color: #fff; margin: 0; padding: 0; overflow: hidden; }
+        #video-viewport { position: relative; width: 100vw; height: 100vh; background: #000; }
         video { width: 100%; height: 100%; object-fit: contain; }
-
-        /* Lớp phủ kích hoạt Fullscreen khi mở App */
-        #start-layer {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 9999; display: flex;
-            flex-direction: column; align-items: center; justify-content: center;
-            cursor: pointer; text-align: center;
-        }
-
-        .stats-overlay { color: var(--green); font-family: monospace; background: rgba(0,0,0,0.7); padding: 2px 6px; border-radius: 4px; pointer-events: none; z-index: 100; font-size: 10px; }
-        #fs-stats { position: absolute; top: 10px; right: 10px; display: none; }
-        body.is-fs .controls-overlay.active #fs-stats { display: block; }
-
-        .controls-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.2s; z-index: 50; pointer-events: none; }
-        .controls-overlay.active { opacity: 1; pointer-events: auto; }
-
-        .sidebar {
-            width: 140px; height: 100%; background: rgba(15,15,15,0.98);
-            transform: translateX(-100%); transition: transform 0.2s;
-            overflow-y: auto; border-right: 1px solid #333;
-            pointer-events: auto; position: relative;
-        }
-        .controls-overlay.active .sidebar { transform: translateX(0); }
         
-        .side-item { padding: 15px 10px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: center; min-height: 60px; opacity: 0.5; transition: 0.2s; }
+        /* UI Danh sách kênh bên trái */
+        .controls-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); opacity: 0; transition: opacity 0.3s; z-index: 50; pointer-events: none; }
+        .controls-overlay.active { opacity: 1; pointer-events: auto; }
+        .sidebar { width: 150px; height: 100%; background: rgba(10,10,10,0.9); transform: translateX(-100%); transition: transform 0.3s; overflow-y: auto; }
+        .controls-overlay.active .sidebar { transform: translateX(0); }
+        .side-item { padding: 10px; border-bottom: 1px solid #222; text-align: center; cursor: pointer; opacity: 0.6; }
         .side-item.active { opacity: 1; border-left: 4px solid var(--yellow); background: rgba(255,204,0,0.1); }
-        .side-item.tv-focus { opacity: 1; outline: 3px solid #fff; background: rgba(255,255,255,0.15); }
-        .side-item img { max-width: 100%; max-height: 45px; object-fit: contain; }
+        .side-item img { max-width: 80%; height: auto; border-radius: 5px; }
 
-        #loading-spinner { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; color: var(--yellow); font-weight: bold; z-index: 20; text-shadow: 0 0 10px #000; }
-        .action-btn { background: var(--blue); color: white; border: 1.5px solid #fff; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; position: absolute; bottom: 20px; right: 20px; display: none; }
-        body.is-fs #btn-exit { display: block; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--yellow); font-size: 14px; z-index: 100; pointer-events: none; }
     </style>
 </head>
-<body class="is-fs">
+<body>
 
-<div id="start-layer" onclick="startApp()">
-    <img src="https://raw.githubusercontent.com/12ecember93/HT-iptv/main/httv.jpg" style="width:100px; border-radius:20px; margin-bottom:20px;">
-    <div style="font-size:18px; font-weight:bold;">CHẠM ĐỂ XEM TV</div>
-</div>
-
-<div id="video-viewport" onclick="showUI()">
-    <div id="loading-spinner">ĐANG KẾT NỐI...</div>
+<div id="video-viewport" onclick="toggleUI()">
+    <div id="loading">ĐANG KẾT NỐI...</div>
     <video id="main-video" autoplay playsinline></video>
-    <div id="fs-stats" class="stats-overlay">0 Mbps | 0 fps</div>
     
     <div class="controls-overlay" id="ui-overlay">
-        <div class="sidebar" id="side-list" onclick="event.stopPropagation()">
-            <div id="sidebar-content" style="margin-top: 20px;"></div>
-        </div>
-        <button id="btn-exit" class="action-btn" onclick="handleFS(false, event)">THOÁT</button>
+        <div class="sidebar" id="sidebar-content"></div>
     </div>
 </div>
 
 <script>
-    const v = document.getElementById('main-video'), view = document.getElementById('video-viewport');
-    const overlay = document.getElementById('ui-overlay'), fStats = document.getElementById('fs-stats'), spinner = document.getElementById('loading-spinner');
-    let hls = new Hls({ enableWorker: true });
-    let uiTimer, fps = 0, frameCount = 0, lastTime = 0, channels = [];
+    const v = document.getElementById('main-video');
+    const overlay = document.getElementById('ui-overlay');
+    const loader = document.getElementById('loading');
+    let hls = new Hls({ capLevelToPlayerSize: true, autoStartLoad: true });
+    let uiTimer, channels = [];
 
-    // Tự động vào Fullscreen & Phát VTV1
-    function startApp() {
-        document.getElementById('start-layer').style.display = 'none';
-        handleFS(true);
-        const vtv1 = channels.find(c => c.short === 'VTV1') || channels[0];
-        if(vtv1) play(vtv1);
-    }
-
-    function handleFS(enter, e) {
-        if (e) e.stopPropagation();
-        if (enter) {
-            if (view.requestFullscreen) view.requestFullscreen();
-            else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
-            if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
-        } else {
-            if (document.exitFullscreen) document.exitFullscreen();
-        }
-    }
-
-    function showUI() {
-        overlay.classList.add('active');
-        clearTimeout(uiTimer);
-        uiTimer = setTimeout(() => {
-            overlay.classList.remove('active');
-        }, 2000); // Ẩn sau 2 giây
-    }
-
-    function play(c) {
-        view.style.backgroundImage = `url('${c.logo}')`; 
-        spinner.style.display = 'block';
+    // HÀM QUAN TRỌNG: Phát kênh ngay lập tức
+    function playChannel(c) {
+        loader.style.display = 'block';
+        
+        // Cập nhật trạng thái menu
         document.querySelectorAll('.side-item').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll(`[data-url="${c.url}"]`).forEach(el => el.classList.add('active'));
+        const activeItem = document.querySelector(`[data-url="${c.url}"]`);
+        if(activeItem) activeItem.classList.add('active');
 
         if (Hls.isSupported()) {
-            hls.detachMedia(); hls.loadSource(c.url); hls.attachMedia(v);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => { v.play(); spinner.style.display = 'none'; });
+            hls.detachMedia();
+            hls.loadSource(c.url);
+            hls.attachMedia(v);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                v.play().catch(() => {
+                    // Nếu bị trình duyệt chặn có tiếng, ép phát không tiếng để bypass
+                    v.muted = true;
+                    v.play();
+                });
+            });
         } else {
-            v.src = c.url; v.play();
+            v.src = c.url;
+            v.play().catch(() => { v.muted = true; v.play(); });
         }
-        v.onplaying = () => { view.style.backgroundImage = 'none'; };
     }
 
-    async function init() {
+    v.onplaying = () => { loader.style.display = 'none'; };
+
+    function toggleUI() {
+        overlay.classList.add('active');
+        clearTimeout(uiTimer);
+        uiTimer = setTimeout(() => overlay.classList.remove('active'), 4000);
+    }
+
+    async function startApp() {
         try {
             const res = await fetch('playlist.json');
             const data = await res.json();
             channels = Object.values(data).flat();
-            const side = document.getElementById('sidebar-content');
             
+            const side = document.getElementById('sidebar-content');
             channels.forEach(c => {
-                const sItem = document.createElement('div');
-                sItem.className = 'side-item';
-                sItem.setAttribute('data-url', c.url);
-                sItem.innerHTML = `<img src="${c.logo}" loading="lazy">`;
-                sItem.onclick = () => play(c);
-                side.appendChild(sItem);
+                const item = document.createElement('div');
+                item.className = 'side-item';
+                item.setAttribute('data-url', c.url);
+                item.innerHTML = `<img src="${c.logo}">`;
+                item.onclick = (e) => { e.stopPropagation(); playChannel(c); };
+                side.appendChild(item);
             });
-        } catch (e) { console.error(e); }
+
+            // MỞ LÀ CHẠY VTV1 HOẶC KÊNH ĐẦU TIÊN
+            const vtv1 = channels.find(c => c.short === 'VTV1') || channels[0];
+            if(vtv1) playChannel(vtv1);
+
+        } catch (err) {
+            loader.innerText = "LỖI TẢI DANH SÁCH KÊNH";
+        }
     }
 
-    // FPS Loop & Fullscreen Check
-    (function fpsLoop() {
-        if (!v.paused) { frameCount++; const now = performance.now(); if (now - lastTime >= 1000) { fps = frameCount; frameCount = 0; lastTime = now; } }
-        const level = hls.levels[hls.currentLevel] || {};
-        fStats.innerText = `${level.bitrate ? (level.bitrate/1000000).toFixed(1) : 0} Mbps | ${fps} fps`;
-        requestAnimationFrame(fpsLoop);
-    })();
+    // Chạy ngay khi web vừa load xong
+    window.onload = startApp;
 
-    document.addEventListener('fullscreenchange', () => {
-        document.body.classList.toggle('is-fs', !!document.fullscreenElement);
+    // Hỗ trợ Remote Android TV (Bấm OK để hiện menu)
+    document.addEventListener('keydown', (e) => {
+        if (e.keyCode === 13 || e.keyCode === 23) toggleUI();
     });
-
-    init();
 </script>
 </body>
 </html>
