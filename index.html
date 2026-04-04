@@ -3,149 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>TV PRO PRO</title>
+    <title>TV</title>
+    <link rel="icon" type="image/jpeg" href="https://raw.githubusercontent.com/12ecember93/HT-iptv/main/httv.jpg">
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <style>
-        :root { --bg-dark: #000; --yellow: #ffcc00; --focus-bg: rgba(255, 255, 255, 0.25); }
-        body { font-family: sans-serif; background: var(--bg-dark); color: #fff; margin: 0; padding: 0; overflow: hidden; -webkit-tap-highlight-color: transparent; }
-        
-        #video-viewport { position: relative; width: 100vw; height: 100vh; background: #000; }
-        video { width: 100%; height: 100%; object-fit: contain; }
-        
-        /* Sidebar - Duy nhất 1 Mode */
-        .controls-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.2s; z-index: 50; pointer-events: none; }
-        .controls-overlay.active { opacity: 1; pointer-events: auto; }
-        
-        .sidebar { 
-            width: 140px; height: 100%; background: rgba(15,15,15,0.95); 
-            transform: translateX(-100%); transition: transform 0.2s; 
-            overflow-y: auto; border-right: 1px solid #333; 
-            scrollbar-width: none; /* Hide scrollbar Firefox */
-        }
-        .sidebar::-webkit-scrollbar { display: none; } /* Hide scrollbar Chrome/Safari */
-        .controls-overlay.active .sidebar { transform: translateX(0); }
-        
-        .side-item { 
-            padding: 12px 8px; border-bottom: 1px solid #222; text-align: center; 
-            opacity: 0.5; outline: none; cursor: pointer; transition: 0.2s; 
-        }
-        .side-item.active { opacity: 1; border-left: 5px solid var(--yellow); background: rgba(255,204,0,0.15); }
-        
-        /* Focus cho D-pad Android TV */
-        .side-item:focus { opacity: 1; background: var(--focus-bg); transform: scale(1.05); z-index: 2; }
-        .side-item img { max-width: 100%; max-height: 45px; object-fit: contain; pointer-events: none; }
+        :root { --yellow: #ffcc00; --focus-bg: rgba(255,255,255,0.25); }
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0; background: #000; color: #fff; font-family: sans-serif; overflow: hidden; -webkit-tap-highlight-color: transparent; }
 
-        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--yellow); font-weight: bold; z-index: 60; text-shadow: 0 0 10px #000; pointer-events: none; }
+        #video-viewport { position: fixed; inset: 0; width: 100vw; height: 100vh; background: #000; }
+        video { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+        .controls-overlay {
+            position: absolute; inset: 0;
+            background: rgba(0,0,0,0.2);
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.2s; z-index: 50;
+        }
+        .controls-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .sidebar {
+            position: absolute; top: 0; left: 0;
+            width: 130px; height: 100%;
+            background: rgba(10,10,10,0.96);
+            border-right: 1px solid #333;
+            overflow-y: auto; overflow-x: hidden;
+            transform: translateX(-100%);
+            transition: transform 0.2s;
+            scrollbar-width: none;
+        }
+        .sidebar::-webkit-scrollbar { display: none; }
+        .controls-overlay.active .sidebar { transform: translateX(0); }
+
+        .side-item {
+            padding: 12px 8px; border-bottom: 1px solid #1a1a1a;
+            text-align: center; opacity: 0.5;
+            cursor: pointer; transition: 0.15s;
+            outline: none;
+        }
+        .side-item.active { opacity: 1; border-left: 4px solid var(--yellow); background: rgba(255,204,0,0.12); }
+        .side-item.focused { opacity: 1; background: var(--focus-bg); transform: scale(1.04); }
+        .side-item img { max-width: 90%; max-height: 42px; object-fit: contain; pointer-events: none; display: block; margin: auto; }
+
+        #loading {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%,-50%);
+            color: var(--yellow); font-weight: bold;
+            font-size: 16px; z-index: 60;
+            text-shadow: 0 0 12px #000;
+            pointer-events: none; display: none;
+        }
     </style>
 </head>
 <body>
 
-<div id="video-viewport" onclick="toggleUI()">
+<div id="video-viewport">
+    <video id="main-video" autoplay playsinline webkit-playsinline></video>
     <div id="loading">ĐANG TẢI...</div>
-    <video id="main-video" autoplay playsinline muted></video>
-    
     <div class="controls-overlay" id="ui-overlay">
-        <div class="sidebar" id="sidebar-content"></div>
+        <div class="sidebar" id="sidebar-el"></div>
     </div>
 </div>
 
 <script>
-    const v = document.getElementById('main-video'), view = document.getElementById('video-viewport');
-    const overlay = document.getElementById('ui-overlay'), loader = document.getElementById('loading');
-    const sideContent = document.getElementById('sidebar-content');
-    
-    let hls = new Hls(), uiTimer, channels = [], currentIndex = 0;
+const v       = document.getElementById('main-video');
+const overlay = document.getElementById('ui-overlay');
+const sidebar = document.getElementById('sidebar-el');
+const loader  = document.getElementById('loading');
 
-    function playChannel(c) {
+let hls = new Hls({ manifestLoadingMaxRetry: 10, levelLoadingMaxRetry: 10, fragLoadingMaxRetry: 10 });
+let channels = [], curIdx = 0, uiTimer = null;
+
+// ── HLS error recovery ──────────────────────────────────────
+hls.on(Hls.Events.ERROR, (_, d) => {
+    if (!d.fatal) return;
+    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+    else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+});
+
+// ── Play ────────────────────────────────────────────────────
+function playChannel(idx) {
+    if (idx < 0 || idx >= channels.length) return;
+    curIdx = idx;
+    const c = channels[idx];
+    loader.style.display = 'block';
+
+    document.querySelectorAll('.side-item').forEach(el => el.classList.remove('active'));
+    const activeEl = sidebar.children[idx];
+    if (activeEl) {
+        activeEl.classList.add('active');
+        activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+
+    if (Hls.isSupported()) {
+        hls.detachMedia();
+        hls.loadSource(c.url);
+        hls.attachMedia(v);
+        hls.once(Hls.Events.MANIFEST_PARSED, () => v.play().catch(() => {}));
+    } else if (v.canPlayType('application/vnd.apple.mpegurl')) {
+        v.src = c.url; v.play().catch(() => {});
+    }
+}
+
+v.addEventListener('playing', () => loader.style.display = 'none');
+
+// ── UI show/hide ────────────────────────────────────────────
+function showUI() {
+    overlay.classList.add('active');
+    setFocus(curIdx);
+    resetHideTimer();
+}
+
+function hideUI() {
+    overlay.classList.remove('active');
+    clearFocus();
+    clearTimeout(uiTimer);
+}
+
+function resetHideTimer() {
+    clearTimeout(uiTimer);
+    uiTimer = setTimeout(hideUI, 2000);
+}
+
+// ── Focus helper ────────────────────────────────────────────
+function setFocus(idx) {
+    document.querySelectorAll('.side-item').forEach(el => el.classList.remove('focused'));
+    const el = sidebar.children[idx];
+    if (el) {
+        el.classList.add('focused');
+        el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+}
+
+function clearFocus() {
+    document.querySelectorAll('.side-item').forEach(el => el.classList.remove('focused'));
+}
+
+// ── Touch / Mouse ───────────────────────────────────────────
+document.getElementById('video-viewport').addEventListener('click', (e) => {
+    if (overlay.contains(e.target) && e.target !== overlay) return; // click vào sidebar item → do nothing here
+    overlay.classList.contains('active') ? hideUI() : showUI();
+});
+
+// ── Fullscreen ──────────────────────────────────────────────
+function tryFullscreen() {
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    if (screen.orientation?.lock) screen.orientation.lock('landscape').catch(() => {});
+}
+
+// ── Keyboard / D-pad ───────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+    const KEYS = { UP: 38, DOWN: 40, LEFT: 37, RIGHT: 39, OK: 13, OK2: 23, BACK: 8, MENU: 18 };
+
+    // BACK / MENU
+    if (e.keyCode === KEYS.BACK || e.keyCode === KEYS.MENU) {
+        e.preventDefault();
+        overlay.classList.contains('active') ? hideUI() : showUI();
+        return;
+    }
+
+    // Nếu UI chưa hiện → mọi phím đều mở
+    if (!overlay.classList.contains('active')) {
+        e.preventDefault(); showUI(); return;
+    }
+
+    resetHideTimer();
+
+    const n = channels.length;
+    if (e.keyCode === KEYS.DOWN) {
+        e.preventDefault();
+        curIdx = (curIdx + 1) % n;        // wrap cuối → đầu
+        setFocus(curIdx);
+    } else if (e.keyCode === KEYS.UP) {
+        e.preventDefault();
+        curIdx = (curIdx - 1 + n) % n;    // wrap đầu → cuối
+        setFocus(curIdx);
+    } else if (e.keyCode === KEYS.OK || e.keyCode === KEYS.OK2 || e.keyCode === KEYS.RIGHT) {
+        e.preventDefault();
+        playChannel(curIdx);
+        hideUI();
+    } else if (e.keyCode === KEYS.LEFT) {
+        e.preventDefault();
+        hideUI();
+    }
+});
+
+// ── Init ────────────────────────────────────────────────────
+async function init() {
+    try {
+        const res = await fetch('playlist.json');
+        const data = await res.json();
+        let raw = Object.values(data).flat();
+
+        // THVL1 lên đầu sidebar
+        const thvl1 = raw.find(c => c.short === 'THVL1');
+        const rest  = raw.filter(c => c.short !== 'THVL1');
+        channels = thvl1 ? [thvl1, ...rest] : raw;
+
+        channels.forEach((c, i) => {
+            const el = document.createElement('div');
+            el.className = 'side-item';
+            el.setAttribute('data-url', c.url);
+            el.innerHTML = `<img src="${c.logo}" loading="lazy" title="${c.name}">`;
+            el.addEventListener('click', (e) => { e.stopPropagation(); playChannel(i); hideUI(); });
+            sidebar.appendChild(el);
+        });
+
+        // Phát VTV1 mặc định
+        const vtv1Idx = channels.findIndex(c => c.short === 'VTV1');
+        playChannel(vtv1Idx >= 0 ? vtv1Idx : 0);
+
+        // Auto fullscreen
+        tryFullscreen();
+        document.addEventListener('click', tryFullscreen, { once: true });
+
+    } catch (err) {
         loader.style.display = 'block';
-        v.muted = false; // Force unmute on selection
-        
-        document.querySelectorAll('.side-item').forEach(el => el.classList.remove('active'));
-        const activeItem = document.querySelector(`[data-url="${c.url}"]`);
-        if(activeItem) {
-            activeItem.classList.add('active');
-            currentIndex = Array.from(document.querySelectorAll('.side-item')).indexOf(activeItem);
-        }
-
-        if (Hls.isSupported()) {
-            hls.detachMedia(); hls.loadSource(c.url); hls.attachMedia(v);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => { v.play(); });
-        } else {
-            v.src = c.url; v.play();
-        }
+        loader.innerText = 'LỖI DANH SÁCH';
     }
+}
 
-    v.onplaying = () => { loader.style.display = 'none'; };
-
-    function toggleUI() {
-        overlay.classList.add('active');
-        const active = document.querySelector('.side-item.active') || document.querySelector('.side-item');
-        if(active) active.focus();
-        resetTimer();
-    }
-
-    function resetTimer() {
-        clearTimeout(uiTimer);
-        uiTimer = setTimeout(() => {
-            overlay.classList.remove('active');
-            v.focus(); // Trả focus về video để tránh lỗi điều khiển
-        }, 2000); // Tự ẩn sau 2 giây
-    }
-
-    async function init() {
-        try {
-            const res = await fetch('playlist.json');
-            const data = await res.json();
-            let rawList = Object.values(data).flat();
-
-            // 1. Đưa THVL1 lên đầu Sidebar
-            const thvl1 = rawList.find(c => c.short === 'THVL1');
-            const others = rawList.filter(c => c.short !== 'THVL1');
-            channels = thvl1 ? [thvl1, ...others] : rawList;
-
-            channels.forEach((c) => {
-                const item = document.createElement('div');
-                item.className = 'side-item';
-                item.tabIndex = 0; 
-                item.setAttribute('data-url', c.url);
-                item.innerHTML = `<img src="${c.logo}">`;
-                item.onclick = (e) => { e.stopPropagation(); playChannel(c); };
-                sideContent.appendChild(item);
-            });
-
-            // 2. Mở app phát VTV1 mặc định
-            const vtv1 = channels.find(c => c.short === 'VTV1') || channels[0];
-            if(vtv1) playChannel(vtv1);
-
-        } catch (e) { loader.innerText = "LỖI DANH SÁCH"; }
-    }
-
-    // Xử lý D-pad + Phím cứng
-    document.addEventListener('keydown', (e) => {
-        const items = document.querySelectorAll('.side-item');
-        
-        // Nếu Menu đang ẩn, bấm phím bất kỳ (Lên/Xuống/OK) để hiện Menu
-        if (!overlay.classList.contains('active')) {
-            if ([13, 23, 38, 40].includes(e.keyCode)) toggleUI();
-            return;
-        }
-
-        resetTimer(); // Bấm phím thì reset thời gian ẩn
-
-        if (e.keyCode === 40) { // DOWN: Wrap around
-            currentIndex = (currentIndex + 1) % items.length;
-            items[currentIndex].focus();
-            items[currentIndex].scrollIntoView({ block: 'center', behavior: 'smooth' });
-        } else if (e.keyCode === 38) { // UP: Wrap around
-            currentIndex = (currentIndex - 1 + items.length) % items.length;
-            items[currentIndex].focus();
-            items[currentIndex].scrollIntoView({ block: 'center', behavior: 'smooth' });
-        } else if (e.keyCode === 13 || e.keyCode === 23 || e.keyCode === 39) { // ENTER hoặc RIGHT: Chọn kênh
-            playChannel(channels[currentIndex]);
-        }
-    });
-
-    window.onload = init;
+init();
 </script>
 </body>
 </html>
